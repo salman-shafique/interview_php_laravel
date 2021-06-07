@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\LogHour;
 use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use function json_decode;
+use \Illuminate\Support\Facades\DB;
 
 class SupplierTest extends TestCase
 {
@@ -20,7 +24,15 @@ class SupplierTest extends TestCase
     public function testCalculateAmountOfHoursDuringTheWeekSuppliersAreWorking()
     {
         $response = $this->get('/api/suppliers');
-        $hours = NAN;
+        $hours = 0;
+        // calculate the hours logged on each day and filter the last week
+        if (count($response['data']['suppliers']) > 0) {
+            $suppliers = $response['data']['suppliers'];
+            $supplierIDs = Arr::pluck($suppliers, 'id');
+            $startDate = now()->subDays(7);
+            $endDate = now();
+            $hours = LogHour::whereIn('supplier_id', $supplierIDs)->whereBetween('start_time', [$startDate, $endDate])->sum('total_time');
+        }
 
         $response->assertStatus(200);
         $this->assertEquals(136, $hours,
@@ -36,13 +48,18 @@ class SupplierTest extends TestCase
      */
     public function testSaveSupplierInDatabase()
     {
+        // Disable foreign key checks when truncating, then re-enable it
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        LogHour::query()->truncate();
         Supplier::query()->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+
         $responseList = $this->get('/api/suppliers');
-        $supplier = \json_decode($responseList->getContent(), true)['data']['suppliers'][0];
-
+        $supplier = json_decode($responseList->getContent(), true)['data']['suppliers'][0];
         $response = $this->post('/api/suppliers', $supplier);
-
         $response->assertStatus(204);
+
         $this->assertEquals(1, Supplier::query()->count());
         $dbSupplier = Supplier::query()->first();
         $this->assertNotFalse(curl_init($dbSupplier->url));

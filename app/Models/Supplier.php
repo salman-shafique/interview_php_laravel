@@ -17,4 +17,9 @@ class Supplier extends Model
         'url',
         'address'
     ];
+
+    public function logHours()
+    {
+        return $this->hasMany(LogHour::class);
+    }
 }

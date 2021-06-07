@@ -4,25 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Exception;
+use Illuminate\Http\Response;
 
 class SupplierController extends Controller
 {
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function index()
     {
-        return response(file_get_contents(resource_path('data/suppliers.json')),200, [
+        $response = [];
+
+        $suppliers = Supplier::get();
+        if ($suppliers->isEmpty()) {
+            $response = file_get_contents(resource_path('data/suppliers.json'));
+
+        } else {
+            $response['data']['suppliers'] = $suppliers;
+        }
+        return response($response, 200, [
             'Content-Type' => 'application/json'
         ]);
+
     }
 
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function create()
     {
@@ -32,18 +44,43 @@ class SupplierController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @param Request $request
+     * @return Response
      */
     public function store(Request $request)
     {
+        try {
+            // Laravel request validate can be added here $request->validate([])
+//            $validated = $request->validate([
+//                'name' => ['required', 'unique:suppliers,name'],
+//                'rules' => ['required'],
+//                'url' => ['required', 'url'],
+//                'district' => ['required'],
+//                'info' => ['required', 'min:4']]);
+
+            $supplier = Supplier::where('name', $request->name)->first();
+            if ($supplier) {
+                return response("Supplier already exists", 422, [
+                    'Content-Type' => 'application/json'
+                ]);
+            }
+            $supplier = Supplier::create($request->only(['name', 'rules', 'url', 'district', 'info']));
+            return response($supplier, 204, [
+                'Content-Type' => 'application/json'
+            ]);
+        } catch (Exception $exception) {
+            return response($exception->getMessage(), 500, [
+                'Content-Type' => 'application/json'
+            ]);
+        }
+
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Supplier  $supplier
-     * @return \Illuminate\Http\Response
+     * @param Supplier $supplier
+     * @return Response
      */
     public function show(Supplier $supplier)
     {
@@ -53,8 +90,8 @@ class SupplierController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  \App\Models\Supplier  $supplier
-     * @return \Illuminate\Http\Response
+     * @param Supplier $supplier
+     * @return Response
      */
     public function edit(Supplier $supplier)
     {
@@ -64,9 +101,9 @@ class SupplierController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Supplier  $supplier
-     * @return \Illuminate\Http\Response
+     * @param Request $request
+     * @param Supplier $supplier
+     * @return Response
      */
     public function update(Request $request, Supplier $supplier)
     {
@@ -76,8 +113,8 @@ class SupplierController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Supplier  $supplier
-     * @return \Illuminate\Http\Response
+     * @param Supplier $supplier
+     * @return Response
      */
     public function destroy(Supplier $supplier)
     {
